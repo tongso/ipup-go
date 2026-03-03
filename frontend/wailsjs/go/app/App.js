@@ -34,6 +34,10 @@ export function GetPublicIP() {
   return window['go']['app']['App']['GetPublicIP']();
 }
 
+export function GetSettings() {
+  return window['go']['app']['App']['GetSettings']();
+}
+
 export function ListDomains() {
   return window['go']['app']['App']['ListDomains']();
 }

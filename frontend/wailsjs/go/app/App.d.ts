@@ -19,6 +19,8 @@ export function GetLogs(arg1:string,arg2:string):Promise<Array<types.LogEntry>>;
 
 export function GetPublicIP():Promise<types.IPInfo>;
 
+export function GetSettings():Promise<types.Settings>;
+
 export function ListDomains():Promise<Array<types.Domain>>;
 
 export function LoadSettings():Promise<types.Settings>;

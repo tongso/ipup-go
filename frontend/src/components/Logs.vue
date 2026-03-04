@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue'
 import { GetLogs as BackendGetLogs, ClearLogs as BackendClearLogs, ExportLogs as BackendExportLogs } from '../../wailsjs/go/app/App'
+import { notifySuccess, notifyError } from '../utils/notifications'
 
 interface LogEntry {
   id: number
@@ -25,7 +26,7 @@ const loadLogs = async () => {
     logs.value = result || []
   } catch (error) {
     console.error('加载日志失败:', error)
-    alert('加载日志失败')
+    notifyError('加载日志失败')
   } finally {
     isLoading.value = false
   }
@@ -50,10 +51,10 @@ const clearLogs = async () => {
   try {
     await BackendClearLogs()
     logs.value = [] // 清空本地数据
-    alert('日志已清空')
+    notifySuccess('日志已清空', 2000)
   } catch (error) {
     console.error('清空日志失败:', error)
-    alert('清空失败：' + (error as Error).message)
+    notifyError('清空失败：' + (error as Error).message)
   }
 }
 
@@ -69,9 +70,11 @@ const exportLogs = async () => {
     a.download = `ddns-logs-${new Date().toISOString().split('T')[0]}.txt`
     a.click()
     URL.revokeObjectURL(url)
+    
+    notifySuccess('日志已导出')
   } catch (error) {
     console.error('导出日志失败:', error)
-    alert('导出失败：' + (error as Error).message)
+    notifyError('导出失败：' + (error as Error).message)
   }
 }
 
@@ -160,7 +163,7 @@ onMounted(() => {
     </div>
     
     <!-- Logs List -->
-    <div class="logs-list" id="logsList">
+    <div class="log-list" id="logsList">
       <div 
         v-for="log in filteredLogs" 
         :key="log.id"
@@ -192,19 +195,22 @@ onMounted(() => {
 .logs-container {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 24px;
 }
 
 .section-title {
-  font-size: 24px;
-  margin-bottom: 20px;
-  color: #fff;
+  font-size: 28px;
+  margin-bottom: 24px;
+  color: #1a202c;
+  font-weight: 700;
+  letter-spacing: -0.5px;
 }
 
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   gap: 15px;
   flex-wrap: wrap;
 }
@@ -218,27 +224,37 @@ onMounted(() => {
 
 .search-input {
   flex: 1;
-  padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #fff;
-  font-size: 14px;
+  padding: 9px 12px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #2d3748;
+  font-size: 13px;
+  transition: all 0.3s ease;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #9ae6b4;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(154, 230, 180, 0.15);
 }
 
 .filter-select {
-  padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #fff;
-  font-size: 14px;
+  padding: 9px 12px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #2d3748;
+  font-size: 13px;
   cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #9ae6b4;
+  background: #ffffff;
 }
 
 .actions {
@@ -251,209 +267,220 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
+  color: #4a5568;
+  font-size: 13px;
   cursor: pointer;
+  font-weight: 500;
 }
 
 .btn-secondary {
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #fff;
+  padding: 9px 16px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #4a5568;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
   transition: all 0.3s ease;
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: #edf2f7;
+  border-color: #cbd5e0;
 }
 
 .btn-danger {
-  padding: 10px 16px;
-  background: rgba(245, 101, 101, 0.2);
-  border: 1px solid rgba(245, 101, 101, 0.3);
-  border-radius: 6px;
-  color: #f56565;
+  padding: 9px 16px;
+  background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+  border: none;
+  border-radius: 8px;
+  color: white;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(245, 101, 101, 0.2);
 }
 
 .btn-danger:hover {
-  background: rgba(245, 101, 101, 0.3);
+  background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
 }
 
 .stats {
   display: flex;
-  gap: 15px;
+  gap: 12px;
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
 
 .stat-item {
   flex: 1;
-  min-width: 100px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  padding: 15px;
+  min-width: 110px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 14px;
   text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e8f4ec;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(72, 187, 120, 0.08);
 }
 
 .stat-label {
   display: block;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 8px;
+  font-size: 11px;
+  color: #a0aec0;
+  margin-bottom: 6px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .stat-value {
   display: block;
-  font-size: 24px;
-  font-weight: bold;
-  color: #fff;
+  font-size: 26px;
+  font-weight: 700;
+  color: #2d3748;
 }
 
 .stat-item.success .stat-value {
-  color: #48bb78;
+  color: #38a169;
 }
 
 .stat-item.info .stat-value {
-  color: #667eea;
+  color: #3182ce;
 }
 
 .stat-item.warning .stat-value {
-  color: #ed8936;
+  color: #dd6b20;
 }
 
 .stat-item.error .stat-value {
-  color: #f56565;
+  color: #e53e3e;
 }
 
-.logs-list {
+.log-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: calc(100vh - 400px);
-  overflow-y: auto;
 }
 
 .log-item {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  padding: 15px;
-  border-left: 4px solid transparent;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 14px;
+  border: 1px solid #e8f4ec;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   transition: all 0.3s ease;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .log-item:hover {
-  background: rgba(0, 0, 0, 0.3);
-  transform: translateX(4px);
-}
-
-.log-item.level-success {
-  border-left-color: #48bb78;
-}
-
-.log-item.level-info {
-  border-left-color: #667eea;
-}
-
-.log-item.level-warning {
-  border-left-color: #ed8936;
-}
-
-.log-item.level-error {
-  border-left-color: #f56565;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+  border-left: 3px solid #48bb78;
 }
 
 .log-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
-}
-
-.log-icon {
-  font-size: 16px;
+  margin-bottom: 6px;
 }
 
 .log-level {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .log-level.success {
-  background: rgba(72, 187, 120, 0.2);
-  color: #48bb78;
+  background: linear-gradient(135deg, rgba(198, 246, 213, 0.4) 0%, rgba(154, 230, 180, 0.4) 100%);
+  color: #22543d;
+  border: 1px solid rgba(134, 239, 172, 0.3);
 }
 
 .log-level.info {
-  background: rgba(102, 126, 234, 0.2);
-  color: #667eea;
+  background: linear-gradient(135deg, rgba(189, 227, 255, 0.4) 0%, rgba(154, 205, 250, 0.4) 100%);
+  color: #2c5282;
+  border: 1px solid rgba(100, 181, 246, 0.3);
 }
 
 .log-level.warning {
-  background: rgba(237, 137, 54, 0.2);
-  color: #ed8936;
+  background: linear-gradient(135deg, rgba(254, 226, 191, 0.4) 0%, rgba(253, 207, 159, 0.4) 100%);
+  color: #744210;
+  border: 1px solid rgba(251, 191, 36, 0.3);
 }
 
 .log-level.error {
-  background: rgba(245, 101, 101, 0.2);
-  color: #f56565;
+  background: linear-gradient(135deg, rgba(254, 202, 202, 0.4) 0%, rgba(252, 165, 165, 0.4) 100%);
+  color: #742a2a;
+  border: 1px solid rgba(248, 113, 113, 0.3);
 }
 
 .log-time {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
-  margin-left: auto;
+  font-size: 11px;
+  color: #a0aec0;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
 }
 
 .log-body {
   display: flex;
   gap: 10px;
-  align-items: center;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .log-domain {
+  color: #48bb78;
   font-weight: 600;
-  color: #a78bfa;
-  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  min-width: 140px;
 }
 
 .log-message {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
+  color: #4a5568;
   flex: 1;
 }
 
 .empty-state {
   text-align: center;
-  padding: 60px 20px;
-  color: rgba(255, 255, 255, 0.5);
+  padding: 50px 20px;
+  background: linear-gradient(135deg, rgba(198, 246, 213, 0.1) 0%, rgba(154, 230, 180, 0.1) 100%);
+  border-radius: 14px;
+  border: 2px dashed #cbd5e0;
 }
 
-/* 滚动条样式 */
-.logs-list::-webkit-scrollbar {
-  width: 8px;
+.empty-state p {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #4a5568;
+  font-weight: 600;
 }
 
-.logs-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.logs-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.logs-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+.empty-state small {
+  font-size: 13px;
+  color: #a0aec0;
 }
 </style>

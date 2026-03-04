@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
-import { LoadSettings, SaveSettings as BackendSaveSettings, ResetSettings as BackendResetSettings } from '../../wailsjs/go/app/App'
+import { ref, reactive, onMounted } from 'vue'
+import { GetSettings as BackendGetSettings, SaveSettings as BackendSaveSettings, ResetSettings as BackendResetSettings } from '../../wailsjs/go/app/App'
+import { notifySuccess, notifyError } from '../utils/notifications'
 
 const settings = ref({
   autoStart: true,
@@ -21,11 +22,11 @@ const isLoading = ref(true)
 const loadSettings = async () => {
   try {
     isLoading.value = true
-    const result = await LoadSettings()
+    const result = await BackendGetSettings()
     settings.value = result || settings.value
   } catch (error) {
     console.error('加载设置失败:', error)
-    alert('加载设置失败')
+    notifyError('加载设置失败')
   } finally {
     isLoading.value = false
   }
@@ -36,10 +37,10 @@ const saveSettings = async () => {
   try {
     await BackendSaveSettings(settings.value)
     isModified.value = false
-    alert('设置已保存！')
+    notifySuccess('设置已保存！')
   } catch (error) {
     console.error('保存设置失败:', error)
-    alert('保存失败：' + (error as Error).message)
+    notifyError('保存失败：' + (error as Error).message)
   }
 }
 
@@ -49,10 +50,10 @@ const resetSettings = async () => {
     try {
       await BackendResetSettings()
       await loadSettings() // 重新加载默认设置
-      alert('设置已重置为默认值')
+      notifySuccess('设置已重置为默认值')
     } catch (error) {
       console.error('重置设置失败:', error)
-      alert('重置失败：' + (error as Error).message)
+      notifyError('重置失败：' + (error as Error).message)
     }
   }
 }
@@ -229,36 +230,42 @@ onMounted(() => {
 .settings-container {
   max-width: 800px;
   margin: 0 auto;
+  padding: 24px;
 }
 
 .section-title {
-  font-size: 24px;
-  margin-bottom: 20px;
-  color: #fff;
+  font-size: 28px;
+  margin-bottom: 24px;
+  color: #1a202c;
+  font-weight: 700;
+  letter-spacing: -0.5px;
 }
 
 .settings-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: #ffffff;
   border-radius: 12px;
   padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 24px;
+  border: 1px solid #e8f4ec;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 4px 8px rgba(72, 187, 120, 0.05);
 }
 
 .card-title {
   font-size: 18px;
-  margin: 0 0 20px;
-  color: #fff;
-  padding-bottom: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0 0 18px;
+  color: #1a202c;
+  font-weight: 600;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0fdf4;
+  letter-spacing: -0.2px;
 }
 
 .setting-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 14px 0;
+  border-bottom: 1px solid #fafcfb;
 }
 
 .setting-item:last-child {
@@ -272,33 +279,37 @@ onMounted(() => {
 .setting-label {
   display: block;
   font-size: 14px;
-  color: #fff;
-  margin-bottom: 6px;
-  font-weight: 500;
+  color: #2d3748;
+  margin-bottom: 4px;
+  font-weight: 600;
 }
 
 .setting-desc {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: #a0aec0;
   margin: 0;
+  font-weight: 400;
 }
 
 .setting-input,
 .setting-select {
-  width: 250px;
-  padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #fff;
+  width: 260px;
+  padding: 9px 12px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #2d3748;
   font-size: 14px;
   font-family: inherit;
+  transition: all 0.3s ease;
 }
 
 .setting-input:focus,
 .setting-select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #9ae6b4;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(154, 230, 180, 0.15);
 }
 
 .setting-select {
@@ -309,8 +320,8 @@ onMounted(() => {
 .switch {
   position: relative;
   display: inline-block;
-  width: 50px;
-  height: 26px;
+  width: 48px;
+  height: 24px;
 }
 
 .switch input {
@@ -326,68 +337,74 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.2);
-  transition: .4s;
-  border-radius: 26px;
+  background-color: #e2e8f0;
+  transition: .3s;
+  border-radius: 24px;
 }
 
 .slider:before {
   position: absolute;
   content: "";
-  height: 20px;
-  width: 20px;
+  height: 18px;
+  width: 18px;
   left: 3px;
   bottom: 3px;
   background-color: white;
-  transition: .4s;
+  transition: .3s;
   border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 input:checked + .slider {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #9ae6b4 0%, #68d391 100%);
 }
 
 input:checked + .slider:before {
   transform: translateX(24px);
 }
 
-/* Action Buttons */
 .action-buttons {
   display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  margin-top: 30px;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  margin-top: 20px;
 }
 
 .btn-secondary {
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #fff;
+  padding: 10px 20px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #4a5568;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
   transition: all 0.3s ease;
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: #edf2f7;
+  border-color: #cbd5e0;
 }
 
 .btn-primary {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   color: white;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s ease;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(72, 187, 120, 0.2);
 }
 
 .btn-primary:hover:not(.disabled) {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
 }
 
 .btn-primary.disabled {

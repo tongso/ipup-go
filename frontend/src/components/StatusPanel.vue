@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
-import { GetPublicIP, GetDomainStatus, RefreshStatus as BackendRefreshStatus, GetSettings } from '../../wailsjs/go/app/App'
+import { GetPublicIP, GetDomainStatus, GetSettings } from '../../wailsjs/go/app/App'
+import { notifyError, notifyInfo } from '../utils/notifications'
 
 interface IPInfo {
   publicIP: string
@@ -57,7 +58,7 @@ const refreshStatus = async () => {
     domainStatuses.value = statusResult || []
   } catch (error) {
     console.error('刷新状态失败:', error)
-    alert('刷新状态失败：' + (error as Error).message)
+    notifyError('刷新状态失败：' + (error as Error).message)
   } finally {
     isLoading.value = false
   }
@@ -181,61 +182,79 @@ onMounted(() => {
 .status-panel {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 24px;
 }
 
 .section-title {
-  font-size: 24px;
-  margin-bottom: 20px;
-  color: #fff;
+  font-size: 28px;
+  margin-bottom: 24px;
+  color: #1a202c;
+  font-weight: 700;
+  letter-spacing: -0.5px;
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.05);
+  background: #ffffff;
   border-radius: 12px;
   padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 24px;
+  border: 1px solid #e8f4ec;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 4px 8px rgba(72, 187, 120, 0.05);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f0fdf4;
 }
 
 .card-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #fff;
+  color: #1a202c;
+  font-weight: 600;
 }
 
 .badge {
-  background: rgba(102, 126, 234, 0.3);
-  color: #a78bfa;
-  padding: 4px 12px;
+  background: linear-gradient(135deg, rgba(198, 246, 213, 0.5) 0%, rgba(154, 230, 180, 0.5) 100%);
+  color: #22543d;
+  padding: 5px 12px;
   border-radius: 12px;
   font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(134, 239, 172, 0.3);
 }
 
 .refresh-btn {
   padding: 8px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   color: white;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.3s ease;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(72, 187, 120, 0.2);
+  letter-spacing: 0.3px;
 }
 
 .refresh-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+}
+
+.refresh-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .refresh-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -248,27 +267,33 @@ onMounted(() => {
 }
 
 .ip-address {
-  font-size: 36px;
-  font-weight: bold;
-  color: #667eea;
+  font-size: 40px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin-bottom: 10px;
   font-family: 'Courier New', monospace;
+  letter-spacing: -0.5px;
 }
 
 .ip-details {
   display: flex;
   justify-content: center;
   gap: 20px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
+  color: #718096;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 /* IPv4/IPv6 双栈显示 */
 .dual-stack-ips {
-  margin-top: 15px;
-  padding: 12px;
-  background: rgba(102, 126, 234, 0.1);
-  border-radius: 8px;
+  margin-top: 16px;
+  padding: 14px;
+  background: linear-gradient(135deg, rgba(198, 246, 213, 0.25) 0%, rgba(154, 230, 180, 0.25) 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(134, 239, 172, 0.25);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -277,55 +302,73 @@ onMounted(() => {
 .ip-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 14px;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
 }
 
 .ip-label {
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 500;
-  min-width: 50px;
+  font-weight: 600;
+  color: #22543d;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .ip-value {
-  color: #667eea;
   font-family: 'Courier New', monospace;
+  color: #276749;
+  font-weight: 600;
   font-size: 14px;
-  word-break: break-all;
 }
 
 .domain-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .domain-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  border-left: 4px solid transparent;
+  padding: 18px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #f0fdf4;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.domain-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #48bb78 0%, #38a169 100%);
   transition: all 0.3s ease;
 }
 
 .domain-item:hover {
-  background: rgba(0, 0, 0, 0.3);
-  transform: translateX(4px);
+  background: #fafcfb;
+  border-color: #e8f4ec;
+  transform: translateX(3px);
+  box-shadow: 0 3px 10px rgba(72, 187, 120, 0.08);
 }
 
-.domain-item.status-success {
-  border-left-color: #48bb78;
+.domain-item.status-success::before {
+  background: linear-gradient(180deg, #48bb78 0%, #38a169 100%);
 }
 
-.domain-item.status-pending {
-  border-left-color: #ed8936;
+.domain-item.status-pending::before {
+  background: linear-gradient(180deg, #ed8936 0%, #dd6b20 100%);
 }
 
-.domain-item.status-error {
-  border-left-color: #f56565;
+.domain-item.status-error::before {
+  background: linear-gradient(180deg, #fc8181 0%, #f56565 100%);
 }
 
 .domain-info {
@@ -335,33 +378,39 @@ onMounted(() => {
 .domain-name {
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
+  color: #1a202c;
   margin-bottom: 6px;
+  letter-spacing: -0.2px;
 }
 
 .domain-ip {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  color: #718096;
 }
 
 .domain-ip .label {
   margin-right: 6px;
+  font-weight: 500;
+  color: #a0aec0;
+  font-size: 12px;
 }
 
 .domain-ip .ip {
-  color: #667eea;
+  color: #48bb78;
   font-family: 'Courier New', monospace;
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .domain-ip .ip-success {
-  color: #48bb78;
-  font-weight: 500;
+  color: #38a169;
+  font-weight: 600;
 }
 
 .domain-ip .ip-error {
-  color: #f56565;
+  color: #fc8181;
   font-style: italic;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .domain-status {
@@ -381,47 +430,74 @@ onMounted(() => {
   height: 8px;
   border-radius: 50%;
   animation: pulse 2s infinite;
+  box-shadow: 0 0 6px currentColor;
 }
 
 .status-dot.success {
   background-color: #48bb78;
+  color: #48bb78;
 }
 
 .status-dot.pending {
   background-color: #ed8936;
+  color: #ed8936;
 }
 
 .status-dot.error {
-  background-color: #f56565;
-}
-
-.status-text {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.update-time {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px 20px;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.empty-state p {
-  font-size: 16px;
-  margin-bottom: 8px;
+  background-color: #fc8181;
+  color: #fc8181;
 }
 
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
+    transform: scale(1);
   }
   50% {
-    opacity: 0.5;
+    opacity: 0.7;
+    transform: scale(1.05);
   }
+}
+
+.status-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.status-success .status-text {
+  color: #22543d;
+}
+
+.status-pending .status-text {
+  color: #744210;
+}
+
+.status-error .status-text {
+  color: #742a2a;
+}
+
+.update-time {
+  color: #a0aec0;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 50px 20px;
+  color: #a0aec0;
+}
+
+.empty-state p {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #718096;
+  font-weight: 600;
+}
+
+.empty-state small {
+  font-size: 13px;
+  color: #a0aec0;
 }
 </style>

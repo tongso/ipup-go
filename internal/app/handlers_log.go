@@ -14,6 +14,13 @@ func (a *App) GetLogs(level, keyword string) ([]types.LogEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("查询日志失败：%w", err)
 	}
+	
+	// 调试输出
+	fmt.Printf("📝 查询到 %d 条日志\n", len(logs))
+	for i, log := range logs {
+		fmt.Printf("   [%d] %s - %s - %s: %s\n", i, log.Timestamp, log.Level, log.Domain, log.Message)
+	}
+	
 	return logs, nil
 }
 

@@ -34,6 +34,12 @@ func (l *Logger) Add(level, domain, message string) error {
 
 // Get 获取日志列表
 func (l *Logger) Get(level, keyword string, limit int) ([]types.LogEntry, error) {
+	// 处理 level 参数：如果是 'all'，则不过滤级别
+	levelParam := ""
+	if level != "all" && level != "" {
+		levelParam = level
+	}
+	
 	querySQL := `
 	SELECT id, timestamp, level, domain, message
 	FROM logs
@@ -42,7 +48,7 @@ func (l *Logger) Get(level, keyword string, limit int) ([]types.LogEntry, error)
 	LIMIT ?
 	`
 	
-	rows, err := l.db.Query(querySQL, level, level, keyword, "%"+keyword+"%", "%"+keyword+"%", limit)
+	rows, err := l.db.Query(querySQL, levelParam, levelParam, keyword, "%"+keyword+"%", "%"+keyword+"%", limit)
 	if err != nil {
 		return nil, fmt.Errorf("查询日志失败：%w", err)
 	}

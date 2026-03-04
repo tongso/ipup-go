@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { ref, reactive, watch, onMounted, onUnmounted } from 'vue'
 import { ListDomains, AddDomain as BackendAddDomain, UpdateDomain as BackendUpdateDomain, DeleteDomain as BackendDeleteDomain, ToggleDomain as BackendToggleDomain, GetDomainStatus } from '../../wailsjs/go/app/App'
+import { notifySuccess, notifyError, notifyInfo } from '../utils/notifications'
 
 interface DomainConfig {
   id: number
@@ -136,7 +137,7 @@ const clearDomainTimer = (domainId: number) => {
 // 添加域名
 const addDomain = async () => {
   if (!form.domain || !form.token) {
-    alert('请填写完整信息')
+    notifyError('请填写完整信息')
     return
   }
   
@@ -154,7 +155,7 @@ const addDomain = async () => {
       updatedAt: ''
     })
     
-    alert('添加成功')
+    notifySuccess('域名添加成功！')
     resetForm()
     showAddModal.value = false
     
@@ -165,7 +166,7 @@ const addDomain = async () => {
     window.dispatchEvent(new CustomEvent('domains-updated'))
   } catch (error) {
     console.error('添加域名失败:', error)
-    alert('添加失败：' + (error as Error).message)
+    notifyError('添加失败：' + (error as Error).message)
   }
 }
 
@@ -200,7 +201,7 @@ const saveEdit = async () => {
       updatedAt: ''
     })
     
-    alert('更新成功')
+    notifySuccess('域名配置已更新！')
     resetForm()
     showAddModal.value = false
     editingDomain.value = null
@@ -212,7 +213,7 @@ const saveEdit = async () => {
     window.dispatchEvent(new CustomEvent('domains-updated'))
   } catch (error) {
     console.error('更新域名失败:', error)
-    alert('更新失败：' + (error as Error).message)
+    notifyError('更新失败：' + (error as Error).message)
   }
 }
 
@@ -224,7 +225,7 @@ const deleteDomain = async (id: number) => {
   
   try {
     await BackendDeleteDomain(id)
-    alert('删除成功')
+    notifySuccess('域名已删除')
     
     // 立即重新加载列表
     await loadDomains()
@@ -233,7 +234,7 @@ const deleteDomain = async (id: number) => {
     window.dispatchEvent(new CustomEvent('domains-updated'))
   } catch (error) {
     console.error('删除域名失败:', error)
-    alert('删除失败：' + (error as Error).message)
+    notifyError('删除失败：' + (error as Error).message)
   }
 }
 
@@ -242,10 +243,11 @@ const toggleEnabled = async (domain: DomainConfig) => {
   try {
     await BackendToggleDomain(domain.id)
     domain.enabled = !domain.enabled // 立即更新 UI
+    notifyInfo(domain.enabled ? '域名已启用' : '域名已禁用')
     await loadDomains() // 重新加载列表以确保一致性
   } catch (error) {
     console.error('切换域名状态失败:', error)
-    alert('操作失败：' + (error as Error).message)
+    notifyError('操作失败：' + (error as Error).message)
   }
 }
 
@@ -431,186 +433,268 @@ onUnmounted(() => {
 
 <style scoped>
 .domain-list {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
+  padding: 24px;
 }
 
 .section-title {
-  font-size: 24px;
-  margin-bottom: 20px;
-  color: #fff;
+  font-size: 28px;
+  margin-bottom: 24px;
+  color: #1a202c;
+  font-weight: 700;
+  letter-spacing: -0.5px;
 }
 
+/* 工具栏优化 */
 .toolbar {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
+  margin-bottom: 32px;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 0 4px;
 }
 
 .btn-primary {
   padding: 10px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   color: white;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.3s ease;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(72, 187, 120, 0.2);
+  letter-spacing: 0.3px;
 }
 
 .btn-primary:hover {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
 }
 
 .count {
-  color: rgba(255, 255, 255, 0.6);
+  color: #718096;
   font-size: 14px;
+  font-weight: 500;
 }
 
+/* 卡片网格布局优化 */
 .cards-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 24px;
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.05);
+  background: #ffffff;
   border-radius: 12px;
   padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
+  border: 1px solid #e8f4ec;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 4px 8px rgba(72, 187, 120, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
-.card:hover:not(.disabled) {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #48bb78 0%, #38a169 50%, #2f855a 100%);
 }
 
-.card.disabled {
-  opacity: 0.6;
-  filter: grayscale(0.5);
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(72, 187, 120, 0.12);
+  border-color: #c6f6d5;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  align-items: flex-start;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f0fdf4;
+  margin-bottom: 14px;
+  gap: 12px;
+}
+
+.domain-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .domain-name {
   margin: 0;
-  font-size: 18px;
-  color: #fff;
+  font-size: 17px;
+  color: #1a202c;
   word-break: break-all;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  line-height: 1.4;
 }
 
 .provider-badge {
-  display: inline-block;
-  background: rgba(102, 126, 234, 0.2);
-  color: #a78bfa;
-  padding: 4px 8px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(198, 246, 213, 0.5) 0%, rgba(154, 230, 180, 0.5) 100%);
+  color: #22543d;
+  padding: 4px 10px;
+  border-radius: 6px;
   font-size: 12px;
-  margin-top: 6px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(134, 239, 172, 0.3);
+  white-space: nowrap;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .toggle-btn {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f7fafc;
+  color: #718096;
   cursor: pointer;
   font-size: 16px;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .toggle-btn.active {
-  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-  border-color: transparent;
-  color: white;
+  background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+  border-color: #68d391;
+  color: #22543d;
+  box-shadow: 0 1px 3px rgba(104, 211, 145, 0.2);
+}
+
+.toggle-btn:hover {
+  transform: scale(1.08);
+}
+
+.toggle-btn.active:hover {
+  box-shadow: 0 2px 6px rgba(104, 211, 145, 0.3);
 }
 
 .action-btn {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f7fafc;
+  color: #718096;
   cursor: pointer;
   font-size: 16px;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #edf2f7;
+  border-color: #cbd5e0;
+  transform: scale(1.08);
 }
 
 .action-btn.delete:hover {
-  background: rgba(245, 101, 101, 0.2);
-  border-color: #f56565;
+  background: linear-gradient(135deg, rgba(254, 202, 202, 0.6) 0%, rgba(252, 165, 165, 0.6) 100%);
+  border-color: #fc8181;
+  color: #c53030;
 }
 
 .card-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  padding-top: 6px;
 }
 
 .info-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .label {
-  color: rgba(255, 255, 255, 0.5);
+  color: #a0aec0;
   min-width: 80px;
+  font-weight: 500;
+  font-size: 12px;
 }
 
 .value {
-  color: rgba(255, 255, 255, 0.9);
+  color: #4a5568;
+  font-weight: 500;
 }
 
 .token {
   font-family: 'Courier New', monospace;
+  color: #2d3748;
 }
 
 .status-badge {
   display: inline-block;
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: 10px;
   font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
 }
 
 .status-badge.enabled {
-  background: rgba(72, 187, 120, 0.2);
-  color: #48bb78;
+  background: linear-gradient(135deg, rgba(198, 246, 213, 0.4) 0%, rgba(154, 230, 180, 0.4) 100%);
+  color: #22543d;
+  border: 1px solid rgba(134, 239, 172, 0.4);
 }
 
 .status-badge.disabled {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.5);
+  background: #f7fafc;
+  color: #718096;
+  border: 1px solid #e2e8f0;
 }
 
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
-  padding: 60px 20px;
-  color: rgba(255, 255, 255, 0.5);
+  padding: 80px 20px;
+  background: linear-gradient(135deg, rgba(198, 246, 213, 0.1) 0%, rgba(154, 230, 180, 0.1) 100%);
+  border-radius: 16px;
+  border: 2px dashed #cbd5e0;
+}
+
+.empty-state p {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: #4a5568;
+  font-weight: 600;
+}
+
+.empty-state small {
+  font-size: 14px;
+  color: #a0aec0;
 }
 
 .modal-overlay {
@@ -619,79 +703,117 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(26, 32, 44, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.3s ease;
 }
 
 .modal {
-  background: #1a1f3a;
-  border-radius: 12px;
+  background: #ffffff;
+  border-radius: 16px;
   width: 90%;
-  max-width: 500px;
+  max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0fdf4;
 }
 
 .modal-header h3 {
   margin: 0;
-  color: #fff;
+  color: #1a202c;
   font-size: 20px;
+  font-weight: 600;
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  color: #a0aec0;
   font-size: 28px;
   cursor: pointer;
   line-height: 1;
+  transition: all 0.3s ease;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
 }
 
 .close-btn:hover {
-  color: #fff;
+  color: #4a5568;
+  background: #f7fafc;
 }
 
 .modal-body {
-  padding: 20px;
+  padding: 24px;
 }
 
 .form-group {
   margin-bottom: 20px;
 }
 
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
 .form-group label {
   display: block;
   margin-bottom: 8px;
-  color: rgba(255, 255, 255, 0.8);
+  color: #2d3748;
   font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 .form-control {
   width: 100%;
-  padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #fff;
+  padding: 10px 14px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #2d3748;
   font-size: 14px;
   font-family: inherit;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
 }
 
 .form-control:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #9ae6b4;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(154, 230, 180, 0.15);
+}
+
+.form-control::placeholder {
+  color: #a0aec0;
 }
 
 .checkbox-group label {
@@ -700,45 +822,61 @@ onUnmounted(() => {
   gap: 8px;
   cursor: pointer;
   user-select: none;
+  color: #4a5568;
+  font-weight: 500;
 }
 
 .checkbox-group input[type="checkbox"] {
   width: 16px;
   height: 16px;
   cursor: pointer;
+  accent-color: #48bb78;
 }
 
 .help-text {
   display: block;
   margin-top: 6px;
-  color: rgba(255, 255, 255, 0.4);
+  color: #a0aec0;
   font-size: 12px;
+  font-style: italic;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 24px;
+  border-top: 1px solid #f0fdf4;
 }
 
 .btn-secondary {
   padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  color: #fff;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #4a5568;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
   transition: all 0.3s ease;
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: #edf2f7;
+  border-color: #cbd5e0;
 }
 
 .btn-success {
   background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  border: none;
+  color: white;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(72, 187, 120, 0.2);
+}
+
+.btn-success:hover {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
 }
 </style>

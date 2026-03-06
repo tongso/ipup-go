@@ -8,6 +8,8 @@ interface DomainConfig {
   domain: string
   provider: string
   token: string
+  accessKeyID: string
+  accessKeySecret: string
   interval: number
   enabled: boolean
   currentIP?: string
@@ -32,9 +34,38 @@ const form = reactive<DomainConfig>({
   domain: '',
   provider: 'Cloudflare',
   token: '',
+  accessKeyID: '',
+  accessKeySecret: '',
   interval: 300,
   enabled: true
 })
+
+// 判断当前选择的服务商是否需要 AccessKey 配置
+const needAccessKey = () => {
+  return form.provider === 'Aliyun'
+}
+
+// 验证表单数据
+const validateForm = () => {
+  if (!form.domain) {
+    notifyError('域名不能为空')
+    return false
+  }
+  
+  if (needAccessKey()) {
+    if (!form.accessKeyID || !form.accessKeySecret) {
+      notifyError('阿里云需要填写 AccessKey ID 和 AccessKey Secret')
+      return false
+    }
+  } else {
+    if (!form.token) {
+      notifyError('API Token 不能为空')
+      return false
+    }
+  }
+  
+  return true
+}
 
 const providers = [
   { value: 'Cloudflare', label: '☁️ Cloudflare' },
@@ -136,8 +167,7 @@ const clearDomainTimer = (domainId: number) => {
 
 // 添加域名
 const addDomain = async () => {
-  if (!form.domain || !form.token) {
-    notifyError('请填写完整信息')
+  if (!validateForm()) {
     return
   }
   
@@ -147,6 +177,8 @@ const addDomain = async () => {
       domain: form.domain,
       provider: form.provider,
       token: form.token,
+      accessKeyID: form.accessKeyID,
+      accessKeySecret: form.accessKeySecret,
       interval: form.interval,
       enabled: form.enabled,
       currentIP: '',
@@ -177,7 +209,9 @@ const editDomain = (domain: DomainConfig) => {
   form.id = domain.id
   form.domain = domain.domain
   form.provider = domain.provider
-  form.token = domain.token
+  form.token = domain.token || ''
+  form.accessKeyID = domain.accessKeyID || ''
+  form.accessKeySecret = domain.accessKeySecret || ''
   form.interval = domain.interval
   form.enabled = domain.enabled
   showAddModal.value = true
@@ -187,12 +221,18 @@ const editDomain = (domain: DomainConfig) => {
 const saveEdit = async () => {
   if (!editingDomain.value) return
   
+  if (!validateForm()) {
+    return
+  }
+  
   try {
     await BackendUpdateDomain({
       id: form.id,
       domain: form.domain,
       provider: form.provider,
       token: form.token,
+      accessKeyID: form.accessKeyID,
+      accessKeySecret: form.accessKeySecret,
       interval: form.interval,
       enabled: form.enabled,
       currentIP: editingDomain.value?.currentIP || '',
@@ -256,6 +296,8 @@ const resetForm = () => {
   form.domain = ''
   form.provider = 'Cloudflare'
   form.token = ''
+  form.accessKeyID = ''
+  form.accessKeySecret = ''
   form.interval = 300
   form.enabled = true
   editingDomain.value = null
@@ -326,10 +368,20 @@ onUnmounted(() => {
       </div>
       
       <div class="card-body">
-        <div class="info-row">
-          <span class="label">Token:</span>
-          <span class="value token">{{ domain.token.replace(/^(.{4}).*(.{4})$/, '$1****$2') }}</span>
-        </div>
+        <!-- 根据服务商显示不同的验证信息 -->
+        <template v-if="domain.provider === 'Aliyun'">
+          <div class="info-row">
+            <span class="label">AccessKey ID:</span>
+            <span class="value token">{{ domain.accessKeyID ? domain.accessKeyID.replace(/^(.{3}).*(.{4})$/, '$1****$2') : '未配置' }}</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="info-row">
+            <span class="label">Token:</span>
+            <span class="value token">{{ domain.token ? domain.token.replace(/^(.{4}).*(.{4})$/, '$1****$2') : '未配置' }}</span>
+          </div>
+        </template>
+        
         <div class="info-row">
           <span class="label">更新间隔:</span>
           <span class="value">{{ domain.interval / 60 }} 分钟</span>
@@ -384,15 +436,38 @@ onUnmounted(() => {
           </select>
         </div>
         
-        <div class="form-group">
-          <label>API Token / Key</label>
-          <input 
-            v-model="form.token"
-            type="password" 
-            placeholder="输入您的 API Token 或密钥"
-            class="form-control"
-          />
-        </div>
+        <!-- 条件显示 API Token 或 AccessKey 字段 -->
+        <template v-if="!needAccessKey()">
+          <div class="form-group">
+            <label>API Token / Key</label>
+            <input 
+              v-model="form.token"
+              type="password" 
+              placeholder="输入您的 API Token 或密钥"
+              class="form-control"
+            />
+          </div>
+        </template>
+        <template v-else>
+          <div class="form-group">
+            <label>AccessKey ID</label>
+            <input 
+              v-model="form.accessKeyID"
+              type="text" 
+              placeholder="输入您的 AccessKey ID"
+              class="form-control"
+            />
+          </div>
+          <div class="form-group">
+            <label>AccessKey Secret</label>
+            <input 
+              v-model="form.accessKeySecret"
+              type="password" 
+              placeholder="输入您的 AccessKey Secret"
+              class="form-control"
+            />
+          </div>
+        </template>
         
         <div class="form-group">
           <label>更新间隔（秒）</label>

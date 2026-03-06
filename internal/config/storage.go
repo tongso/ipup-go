@@ -25,6 +25,7 @@ func (ss *SettingsStorage) Save(settings types.Settings) error {
 		"retryCount":    settings.RetryCount,
 		"retryDelay":    settings.RetryDelay,
 		"logLevel":      settings.LogLevel,
+		"timezone":      settings.Timezone,
 		"notifySuccess": settings.NotifySuccess,
 		"notifyError":   settings.NotifyError,
 		"proxy":         settings.Proxy,
@@ -76,6 +77,7 @@ func (ss *SettingsStorage) Load() (types.Settings, error) {
 		RetryCount:     3,
 		RetryDelay:     10,
 		LogLevel:       "info",
+		Timezone:       "Local", // 默认使用本地时区
 		NotifySuccess:  false,
 		NotifyError:    true,
 		Proxy:          "",
@@ -107,6 +109,8 @@ func (ss *SettingsStorage) Load() (types.Settings, error) {
 			fmt.Sscanf(value, "%d", &settings.RetryDelay)
 		case "logLevel":
 			settings.LogLevel = value
+		case "timezone":
+			settings.Timezone = value
 		case "notifySuccess":
 			settings.NotifySuccess = (value == "true")
 		case "notifyError":
@@ -139,6 +143,7 @@ func (ss *SettingsStorage) Reset() error {
 		{"retryCount", "3"},
 		{"retryDelay", "10"},
 		{"logLevel", "info"},
+		{"timezone", "Local"}, // 默认使用本地时区
 		{"notifySuccess", "false"},
 		{"notifyError", "true"},
 		{"proxy", ""},

@@ -3,6 +3,7 @@ module ipup-go
 go 1.23
 
 require (
+	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/wailsapp/wails/v2 v2.11.0
 	modernc.org/sqlite v1.29.5
 )

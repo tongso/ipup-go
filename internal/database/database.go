@@ -44,13 +44,15 @@ func (d *Database) GetDB() *sql.DB {
 
 // CreateTables 创建数据库表
 func (d *Database) CreateTables() error {
-	// 创建域名配置表
+	// 创建域名配置表（包含阿里云 AccessKey 字段）
 	domainTable := `
 	CREATE TABLE IF NOT EXISTS domains (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		domain TEXT NOT NULL UNIQUE,
 		provider TEXT NOT NULL,
-		token TEXT NOT NULL,
+		token TEXT NOT NULL DEFAULT '',
+		access_key_id TEXT NOT NULL DEFAULT '',
+		access_key_secret TEXT NOT NULL DEFAULT '',
 		interval INTEGER NOT NULL DEFAULT 300,
 		enabled BOOLEAN NOT NULL DEFAULT 1,
 		current_ip TEXT,
@@ -119,6 +121,7 @@ func (d *Database) InitDefaults() error {
 		{"retryCount", "3"},
 		{"retryDelay", "10"},
 		{"logLevel", "info"},
+		{"timezone", "Local"}, // 默认使用本地时区
 		{"notifySuccess", "false"},
 		{"notifyError", "true"},
 		{"proxy", ""},

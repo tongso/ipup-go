@@ -77,3 +77,7 @@ export function ToggleDomain(arg1) {
 export function UpdateDomain(arg1) {
   return window['go']['app']['App']['UpdateDomain'](arg1);
 }
+
+export function UpdateDomainDNS(arg1) {
+  return window['go']['app']['App']['UpdateDomainDNS'](arg1);
+}

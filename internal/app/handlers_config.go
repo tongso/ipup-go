@@ -23,6 +23,12 @@ func (a *App) SaveSettings(settings types.Settings) error {
 		return fmt.Errorf("保存设置失败：%w", err)
 	}
 	
+	// 应用时区设置到日志记录器
+	if a.logger != nil && settings.Timezone != "" {
+		a.logger.SetTimezone(settings.Timezone)
+		a.addLog("info", "", fmt.Sprintf("日志时区已设置为：%s", settings.Timezone))
+	}
+	
 	a.addLog("info", "", "系统设置已保存")
 	return nil
 }

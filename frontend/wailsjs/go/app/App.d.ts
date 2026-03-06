@@ -40,3 +40,5 @@ export function Startup(arg1:context.Context):Promise<void>;
 export function ToggleDomain(arg1:number):Promise<boolean>;
 
 export function UpdateDomain(arg1:types.Domain):Promise<void>;
+
+export function UpdateDomainDNS(arg1:number):Promise<string>;

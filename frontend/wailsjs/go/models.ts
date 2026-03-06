@@ -5,6 +5,8 @@ export namespace types {
 	    domain: string;
 	    provider: string;
 	    token: string;
+	    accessKeyID: string;
+	    accessKeySecret: string;
 	    interval: number;
 	    enabled: boolean;
 	    currentIP: string;
@@ -22,6 +24,8 @@ export namespace types {
 	        this.domain = source["domain"];
 	        this.provider = source["provider"];
 	        this.token = source["token"];
+	        this.accessKeyID = source["accessKeyID"];
+	        this.accessKeySecret = source["accessKeySecret"];
 	        this.interval = source["interval"];
 	        this.enabled = source["enabled"];
 	        this.currentIP = source["currentIP"];
@@ -31,11 +35,16 @@ export namespace types {
 	    }
 	}
 	export class DomainStatus {
+	    id: number;
 	    domain: string;
 	    currentIP: string;
 	    lastUpdate: string;
 	    status: string;
 	    message: string;
+	    provider: string;
+	    lastApiCall: string;
+	    apiStatus: string;
+	    apiMessage: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new DomainStatus(source);
@@ -43,11 +52,16 @@ export namespace types {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
 	        this.domain = source["domain"];
 	        this.currentIP = source["currentIP"];
 	        this.lastUpdate = source["lastUpdate"];
 	        this.status = source["status"];
 	        this.message = source["message"];
+	        this.provider = source["provider"];
+	        this.lastApiCall = source["lastApiCall"];
+	        this.apiStatus = source["apiStatus"];
+	        this.apiMessage = source["apiMessage"];
 	    }
 	}
 	export class IPInfo {
@@ -96,6 +110,7 @@ export namespace types {
 	    retryCount: number;
 	    retryDelay: number;
 	    logLevel: string;
+	    timezone: string;
 	    notifySuccess: boolean;
 	    notifyError: boolean;
 	    proxy: string;
@@ -112,6 +127,7 @@ export namespace types {
 	        this.retryCount = source["retryCount"];
 	        this.retryDelay = source["retryDelay"];
 	        this.logLevel = source["logLevel"];
+	        this.timezone = source["timezone"];
 	        this.notifySuccess = source["notifySuccess"];
 	        this.notifyError = source["notifyError"];
 	        this.proxy = source["proxy"];

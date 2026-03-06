@@ -5,6 +5,8 @@ import (
 	"time"
 	
 	"ipup-go/internal/domain"
+	"ipup-go/internal/log"
+	"ipup-go/internal/provider"
 	"ipup-go/pkg/types"
 	"ipup-go/pkg/utils"
 )
@@ -41,15 +43,17 @@ func (c *Checker) CheckIPChanged(currentIP string) (bool, error) {
 // MonitorService 监控服务
 type MonitorService struct {
 	domainRepo   *domain.Repository
+	logger       *log.Logger
 	checker      *Checker
 	isRunning    bool
 	stopChan     chan struct{}
 }
 
 // NewMonitorService 创建监控服务
-func NewMonitorService(domainRepo *domain.Repository, checker *Checker) *MonitorService {
+func NewMonitorService(domainRepo *domain.Repository, logger *log.Logger, checker *Checker) *MonitorService {
 	return &MonitorService{
 		domainRepo: domainRepo,
+		logger:     logger,
 		checker:    checker,
 		stopChan:   make(chan struct{}),
 	}
@@ -94,7 +98,11 @@ func (m *MonitorService) Stop() {
 func (m *MonitorService) checkAllDomains() {
 	domains, err := m.domainRepo.ListEnabled()
 	if err != nil {
-		fmt.Printf("获取启用域名失败：%v\n", err)
+		msg := fmt.Sprintf("获取启用域名失败：%v", err)
+		fmt.Println(msg)
+		if m.logger != nil {
+			m.logger.Add("error", "", msg)
+		}
 		return
 	}
 	
@@ -105,24 +113,70 @@ func (m *MonitorService) checkAllDomains() {
 
 // checkDomain 检查单个域名
 func (m *MonitorService) checkDomain(d types.Domain) {
+	logPrefix := fmt.Sprintf("[%s]", d.Domain)
+	
+	// 1. 获取当前公网 IP
 	currentIP, err := m.checker.GetPublicIP()
 	if err != nil {
-		fmt.Printf("[%s] 获取 IP 失败：%v\n", d.Domain, err)
+		msg := fmt.Sprintf("获取公网 IP 失败：%v", err)
+		fmt.Printf("%s %s\n", logPrefix, msg)
+		if m.logger != nil {
+			m.logger.Add("error", d.Domain, msg)
+		}
 		return
 	}
 	
-	// 如果 IP 没有变化，跳过
+	// 2. 如果 IP 没有变化，跳过更新
 	if d.CurrentIP == currentIP {
-		fmt.Printf("[%s] IP 未变化：%s\n", d.Domain, currentIP)
+		fmt.Printf("%s IP 未变化：%s，跳过更新\n", logPrefix, currentIP)
 		return
 	}
 	
-	// IP 发生变化，更新数据库
-	fmt.Printf("[%s] IP 已变化：%s -> %s\n", d.Domain, d.CurrentIP, currentIP)
+	// 3. IP 发生变化，先更新数据库
+	fmt.Printf("%s IP 已变化：%s -> %s，开始更新 DNS 解析\n", logPrefix, d.CurrentIP, currentIP)
 	if err := m.domainRepo.UpdateIP(d.ID, currentIP); err != nil {
-		fmt.Printf("[%s] 更新 IP 失败：%v\n", d.Domain, err)
+		msg := fmt.Sprintf("更新数据库 IP 失败：%v", err)
+		fmt.Printf("%s %s\n", logPrefix, msg)
+		if m.logger != nil {
+			m.logger.Add("error", d.Domain, msg)
+		}
 		return
 	}
 	
-	fmt.Printf("[%s] IP 更新成功\n", d.Domain)
+	// 4. 调用 DNS 提供商 API 更新解析记录
+	m.updateDNSProvider(d, currentIP)
+}
+
+// updateDNSProvider 调用 DNS 提供商 API 更新解析
+func (m *MonitorService) updateDNSProvider(d types.Domain, ip string) {
+	logPrefix := fmt.Sprintf("[%s]", d.Domain)
+	
+	// 根据提供商类型创建对应的 Provider 实例
+	p, err := provider.GetProvider(d.Provider, d.Domain, d.Token, d.AccessKeyID, d.AccessKeySecret)
+	if err != nil {
+		msg := fmt.Sprintf("获取 DNS 提供商失败：%v", err)
+		fmt.Printf("%s %s\n", logPrefix, msg)
+		if m.logger != nil {
+			m.logger.Add("error", d.Domain, msg)
+		}
+		return
+	}
+	
+	// 调用 API 更新 DNS 记录
+	err = p.UpdateRecord(d.Domain, ip)
+	if err != nil {
+		msg := fmt.Sprintf("调用%s API 更新 DNS 记录失败：%v", d.Provider, err)
+		fmt.Printf("%s %s\n", logPrefix, msg)
+		if m.logger != nil {
+			m.logger.Add("error", d.Domain, msg)
+		}
+		return
+	}
+	
+	// 更新成功
+	msg := fmt.Sprintf("成功调用%s API 更新 DNS 记录：%s -> %s", d.Provider, d.Domain, ip)
+	fmt.Printf("%s %s\n", logPrefix, msg)
+	if m.logger != nil {
+		m.logger.Add("success", d.Domain, msg)
+	}
 }

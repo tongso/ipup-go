@@ -9,11 +9,33 @@ const settings = ref({
   retryCount: 3,
   retryDelay: 10,
   logLevel: 'info',
+  timezone: 'Local', // 默认使用本地时区
   notifySuccess: false,
   notifyError: true,
   proxy: '',
   apiEndpoint: 'https://api.ipify.org'
 })
+
+// 常见时区列表
+const timezones = [
+  { value: 'Local', label: '🕐 系统本地时区' },
+  { value: 'Asia/Shanghai', label: '🇨🇳 北京时间 (UTC+8)' },
+  { value: 'Asia/Tokyo', label: '🇯🇵 东京时间 (UTC+9)' },
+  { value: 'Asia/Hong_Kong', label: '🇭🇰 香港时间 (UTC+8)' },
+  { value: 'Asia/Singapore', label: '🇸🇬 新加坡时间 (UTC+8)' },
+  { value: 'Asia/Bangkok', label: '🇹🇭 曼谷时间 (UTC+7)' },
+  { value: 'Asia/Dubai', label: '🇦🇪 迪拜时间 (UTC+4)' },
+  { value: 'Europe/London', label: '🇬🇧 伦敦时间 (UTC+0)' },
+  { value: 'Europe/Paris', label: '🇫🇷 巴黎时间 (UTC+1)' },
+  { value: 'Europe/Berlin', label: '🇩🇪 柏林时间 (UTC+1)' },
+  { value: 'Europe/Moscow', label: '🇷🇺 莫斯科时间 (UTC+3)' },
+  { value: 'America/New_York', label: '🇺🇸 纽约时间 (UTC-5)' },
+  { value: 'America/Los_Angeles', label: '🇺🇸 洛杉矶时间 (UTC-8)' },
+  { value: 'America/Chicago', label: '🇺🇸 芝加哥时间 (UTC-6)' },
+  { value: 'America/Toronto', label: '🇨🇦 多伦多时间 (UTC-5)' },
+  { value: 'Australia/Sydney', label: '🇦🇺 悉尼时间 (UTC+10)' },
+  { value: 'Pacific/Auckland', label: '🇳🇿 奥克兰时间 (UTC+12)' },
+]
 
 const isModified = ref(false)
 const isLoading = ref(true)
@@ -159,6 +181,26 @@ onMounted(() => {
           <input type="checkbox" v-model="settings.notifyError" @change="handleSettingChange" />
           <span class="slider"></span>
         </label>
+      </div>
+    </div>
+    
+    <div class="settings-card">
+      <h3 class="card-title">🕐 时区设置</h3>
+      
+      <div class="setting-item">
+        <div class="setting-info">
+          <label class="setting-label">日志时区</label>
+          <p class="setting-desc">选择日志时间戳显示的时区</p>
+        </div>
+        <select 
+          v-model="settings.timezone"
+          @change="handleSettingChange"
+          class="setting-select"
+        >
+          <option v-for="tz in timezones" :key="tz.value" :value="tz.value">
+            {{ tz.label }}
+          </option>
+        </select>
       </div>
     </div>
     

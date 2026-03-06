@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
-import { GetPublicIP, GetDomainStatus, GetSettings } from '../../wailsjs/go/app/App'
+import { GetPublicIP, GetDomainStatus, GetSettings, UpdateDomainDNS } from '../../wailsjs/go/app/App'
 import { notifyError, notifyInfo } from '../utils/notifications'
 
 interface IPInfo {
@@ -12,11 +12,16 @@ interface IPInfo {
 }
 
 interface DomainStatus {
+  id: number
   domain: string
   currentIP: string
   lastUpdate: string
   status: string
   message: string
+  provider: string
+  lastApiCall: string
+  apiStatus: string
+  apiMessage: string
 }
 
 interface Settings {
@@ -43,6 +48,8 @@ const domainStatuses = ref<DomainStatus[]>([])
 
 const isLoading = ref(false)
 
+const updatingDomains = ref<Map<number, boolean>>(new Map())
+
 // 刷新状态
 const refreshStatus = async () => {
   isLoading.value = true
@@ -61,6 +68,36 @@ const refreshStatus = async () => {
     notifyError('刷新状态失败：' + (error as Error).message)
   } finally {
     isLoading.value = false
+  }
+}
+
+// 手动更新域名的 DNS 解析
+const updateDomainDNS = async (domainId: number, domainName: string) => {
+  // 设置该域名正在更新
+  updatingDomains.value.set(domainId, true)
+  
+  try {
+    const result = await UpdateDomainDNS(domainId)
+    console.log(`✅ ${domainName} DNS 更新成功：`, result)
+    notifyInfo(`✅ ${domainName}: DNS 解析更新成功！`)
+    
+    // 立即刷新状态列表
+    await refreshStatus()
+    
+    // 触发自定义事件，通知其他组件
+    window.dispatchEvent(new CustomEvent('domain-dns-updated', {
+      detail: { domainId, domainName, success: true }
+    }))
+  } catch (error) {
+    console.error(`❌ ${domainName} DNS 更新失败:`, error)
+    notifyError(`❌ ${domainName}: ${(error as Error).message}`, 5000)
+    
+    // 触发失败事件
+    window.dispatchEvent(new CustomEvent('domain-dns-updated', {
+      detail: { domainId, domainName, success: false, error }
+    }))
+  } finally {
+    updatingDomains.value.delete(domainId)
   }
 }
 
@@ -144,10 +181,16 @@ onMounted(() => {
         <div 
           v-for="(domain, index) in domainStatuses" 
           :key="index"
-          :class="['domain-item', `status-${domain.status}`]"
+          :class="['domain-item', `status-${domain.status}`, `api-${domain.apiStatus}`]"
         >
-          <div class="domain-info">
-            <div class="domain-name">{{ domain.domain }}</div>
+          <!-- 左侧域名信息 -->
+          <div class="domain-main-info">
+            <div class="domain-name">
+              {{ domain.domain }}
+              <span class="provider-badge">{{ domain.provider }}</span>
+            </div>
+            
+            <!-- 当前IP显示 -->
             <div class="domain-ip">
               <span class="label">当前 IP:</span>
               <span v-if="domain.currentIP" :class="['ip', 'ip-success']">{{ domain.currentIP }}</span>
@@ -157,8 +200,24 @@ onMounted(() => {
                 <template v-else>⚠️ 无法解析</template>
               </span>
             </div>
+            
+            <!-- API 调用状态 -->
+            <div class="api-status" v-if="domain.lastApiCall || domain.apiMessage">
+              <span :class="['api-indicator', domain.apiStatus]">
+                <span class="api-dot"></span>
+                <span class="api-text">
+                  <template v-if="domain.apiStatus === 'success'">✅</template>
+                  <template v-else-if="domain.apiStatus === 'error'">❌</template>
+                  <template v-else>⏳</template>
+                  {{ domain.apiMessage }}
+                </span>
+              </span>
+              <small class="api-time" v-if="domain.lastApiCall">{{ domain.lastApiCall }}</small>
+            </div>
           </div>
-          <div class="domain-status">
+
+          <!-- 中间状态信息 -->
+          <div class="domain-status-info">
             <div class="status-indicator">
               <span :class="['status-dot', domain.status]"></span>
               <span class="status-text">{{ domain.message }}</span>
@@ -166,6 +225,20 @@ onMounted(() => {
             <div class="update-time">
               <small>更新于：{{ domain.lastUpdate }}</small>
             </div>
+          </div>
+
+          <!-- 右侧操作按钮 -->
+          <div class="domain-actions">
+            <button 
+              :class="['update-dns-btn', { updating: updatingDomains.get(domain.id) }]"
+              @click="updateDomainDNS(domain.id, domain.domain)"
+              :disabled="updatingDomains.get(domain.id)"
+              :title="`手动更新 ${domain.domain} 的 DNS 解析`"
+            >
+              <span v-if="updatingDomains.get(domain.id)" class="spinner"></span>
+              <span v-else>🔄</span>
+              <span class="btn-text">{{ updatingDomains.get(domain.id) ? '更新中...' : '更新 DNS' }}</span>
+            </button>
           </div>
         </div>
         
@@ -341,6 +414,106 @@ onMounted(() => {
   overflow: hidden;
 }
 
+/* 左侧主要信息区域 */
+.domain-main-info {
+  flex: 1;
+  min-width: 0; /* 允许内容溢出时正确截断 */
+}
+
+/* 中间状态信息区域 */
+.domain-status-info {
+  width: 160px;
+  text-align: right;
+  margin-left: 20px;
+  margin-right: 20px;
+  flex-shrink: 0;
+}
+
+/* 右侧操作区域 */
+.domain-actions {
+  width: 120px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.domain-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, #48bb78 0%, #38a169 100%);
+  transition: all 0.3s ease;
+}
+
+.domain-item:hover {
+  background: #fafcfb;
+  border-color: #e8f4ec;
+  transform: translateX(3px);
+  box-shadow: 0 3px 10px rgba(72, 187, 120, 0.08);
+}
+
+.update-dns-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+  letter-spacing: 0.3px;
+}
+
+.update-dns-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.update-dns-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.update-dns-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.update-dns-btn.updating {
+  background: linear-gradient(135deg, #a0aec0 0%, #718096 100%);
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.btn-text {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
 .domain-item::before {
   content: '';
   position: absolute;
@@ -383,6 +556,18 @@ onMounted(() => {
   letter-spacing: -0.2px;
 }
 
+.domain-name .provider-badge {
+  background: linear-gradient(135deg, rgba(198, 246, 213, 0.5) 0%, rgba(154, 230, 180, 0.5) 100%);
+  color: #22543d;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(134, 239, 172, 0.3);
+  margin-left: 8px;
+}
+
 .domain-ip {
   font-size: 13px;
   color: #718096;
@@ -411,6 +596,59 @@ onMounted(() => {
   color: #fc8181;
   font-style: italic;
   font-size: 12px;
+}
+
+.api-status {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #f7fafc;
+  border-radius: 6px;
+  border-left: 3px solid #cbd5e0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.api-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.api-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.api-success .api-dot {
+  background-color: #48bb78;
+  box-shadow: 0 0 4px rgba(72, 187, 120, 0.4);
+}
+
+.api-error .api-dot {
+  background-color: #fc8181;
+  box-shadow: 0 0 4px rgba(252, 129, 129, 0.4);
+}
+
+.api-pending .api-dot {
+  background-color: #ed8936;
+  box-shadow: 0 0 4px rgba(237, 137, 54, 0.4);
+}
+
+.api-text {
+  color: #4a5568;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.api-time {
+  color: #a0aec0;
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .domain-status {
@@ -457,6 +695,19 @@ onMounted(() => {
     opacity: 0.7;
     transform: scale(1.05);
   }
+}
+
+/* 状态项的额外样式 */
+.domain-item.api-success {
+  border-left: 3px solid #48bb78;
+}
+
+.domain-item.api-error {
+  border-left: 3px solid #fc8181;
+}
+
+.domain-item.api-pending {
+  border-left: 3px solid #ed8936;
 }
 
 .status-text {

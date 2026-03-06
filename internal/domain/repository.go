@@ -20,11 +20,11 @@ func NewRepository(db *sql.DB) *Repository {
 // Create 创建域名配置
 func (r *Repository) Create(domain types.Domain) (int64, error) {
 	insertSQL := `
-	INSERT INTO domains (domain, provider, token, interval, enabled, created_at, updated_at) 
-	VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	INSERT INTO domains (domain, provider, token, access_key_id, access_key_secret, interval, enabled, created_at, updated_at) 
+	VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`
 	
-	result, err := r.db.Exec(insertSQL, domain.Domain, domain.Provider, domain.Token, domain.Interval, domain.Enabled)
+	result, err := r.db.Exec(insertSQL, domain.Domain, domain.Provider, domain.Token, domain.AccessKeyID, domain.AccessKeySecret, domain.Interval, domain.Enabled)
 	if err != nil {
 		return 0, fmt.Errorf("插入域名失败：%w", err)
 	}
@@ -41,11 +41,11 @@ func (r *Repository) Create(domain types.Domain) (int64, error) {
 func (r *Repository) Update(domain types.Domain) error {
 	updateSQL := `
 	UPDATE domains 
-	SET domain = ?, provider = ?, token = ?, interval = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP 
+	SET domain = ?, provider = ?, token = ?, access_key_id = ?, access_key_secret = ?, interval = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP 
 	WHERE id = ?
 	`
 	
-	_, err := r.db.Exec(updateSQL, domain.Domain, domain.Provider, domain.Token, domain.Interval, domain.Enabled, domain.ID)
+	_, err := r.db.Exec(updateSQL, domain.Domain, domain.Provider, domain.Token, domain.AccessKeyID, domain.AccessKeySecret, domain.Interval, domain.Enabled, domain.ID)
 	if err != nil {
 		return fmt.Errorf("更新域名失败：%w", err)
 	}
@@ -67,7 +67,9 @@ func (r *Repository) Delete(id int) error {
 // GetByID 根据 ID 获取域名
 func (r *Repository) GetByID(id int) (types.Domain, error) {
 	querySQL := `
-	SELECT id, domain, provider, token, interval, enabled, 
+	SELECT id, domain, provider, token, 
+	       COALESCE(access_key_id, ''), COALESCE(access_key_secret, ''),
+	       interval, enabled, 
 	       COALESCE(current_ip, ''), COALESCE(last_update, ''), 
 	       COALESCE(created_at, ''), COALESCE(updated_at, '')
 	FROM domains 
@@ -76,7 +78,8 @@ func (r *Repository) GetByID(id int) (types.Domain, error) {
 	
 	var d types.Domain
 	err := r.db.QueryRow(querySQL, id).Scan(
-		&d.ID, &d.Domain, &d.Provider, &d.Token, &d.Interval, &d.Enabled,
+		&d.ID, &d.Domain, &d.Provider, &d.Token, &d.AccessKeyID, &d.AccessKeySecret,
+		&d.Interval, &d.Enabled,
 		&d.CurrentIP, &d.LastUpdate, &d.CreatedAt, &d.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -92,7 +95,9 @@ func (r *Repository) GetByID(id int) (types.Domain, error) {
 // GetByDomain 根据域名获取配置
 func (r *Repository) GetByDomain(domain string) (types.Domain, error) {
 	querySQL := `
-	SELECT id, domain, provider, token, interval, enabled, 
+	SELECT id, domain, provider, token, 
+	       COALESCE(access_key_id, ''), COALESCE(access_key_secret, ''),
+	       interval, enabled, 
 	       COALESCE(current_ip, ''), COALESCE(last_update, ''), 
 	       COALESCE(created_at, ''), COALESCE(updated_at, '')
 	FROM domains 
@@ -101,7 +106,8 @@ func (r *Repository) GetByDomain(domain string) (types.Domain, error) {
 	
 	var d types.Domain
 	err := r.db.QueryRow(querySQL, domain).Scan(
-		&d.ID, &d.Domain, &d.Provider, &d.Token, &d.Interval, &d.Enabled,
+		&d.ID, &d.Domain, &d.Provider, &d.Token, &d.AccessKeyID, &d.AccessKeySecret,
+		&d.Interval, &d.Enabled,
 		&d.CurrentIP, &d.LastUpdate, &d.CreatedAt, &d.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
@@ -117,7 +123,9 @@ func (r *Repository) GetByDomain(domain string) (types.Domain, error) {
 // List 获取所有域名列表
 func (r *Repository) List() ([]types.Domain, error) {
 	querySQL := `
-	SELECT id, domain, provider, token, interval, enabled, 
+	SELECT id, domain, provider, token, 
+	       COALESCE(access_key_id, ''), COALESCE(access_key_secret, ''),
+	       interval, enabled, 
 	       COALESCE(current_ip, ''), COALESCE(last_update, ''), 
 	       COALESCE(created_at, ''), COALESCE(updated_at, '')
 	FROM domains 
@@ -134,7 +142,8 @@ func (r *Repository) List() ([]types.Domain, error) {
 	for rows.Next() {
 		var d types.Domain
 		if err := rows.Scan(
-			&d.ID, &d.Domain, &d.Provider, &d.Token, &d.Interval, &d.Enabled,
+			&d.ID, &d.Domain, &d.Provider, &d.Token, &d.AccessKeyID, &d.AccessKeySecret,
+			&d.Interval, &d.Enabled,
 			&d.CurrentIP, &d.LastUpdate, &d.CreatedAt, &d.UpdatedAt,
 		); err != nil {
 			continue
@@ -148,7 +157,9 @@ func (r *Repository) List() ([]types.Domain, error) {
 // ListEnabled 获取所有启用的域名
 func (r *Repository) ListEnabled() ([]types.Domain, error) {
 	querySQL := `
-	SELECT id, domain, provider, token, interval, enabled, 
+	SELECT id, domain, provider, token, 
+	       COALESCE(access_key_id, ''), COALESCE(access_key_secret, ''),
+	       interval, enabled, 
 	       COALESCE(current_ip, ''), COALESCE(last_update, ''), 
 	       COALESCE(created_at, ''), COALESCE(updated_at, '')
 	FROM domains 
@@ -166,7 +177,8 @@ func (r *Repository) ListEnabled() ([]types.Domain, error) {
 	for rows.Next() {
 		var d types.Domain
 		if err := rows.Scan(
-			&d.ID, &d.Domain, &d.Provider, &d.Token, &d.Interval, &d.Enabled,
+			&d.ID, &d.Domain, &d.Provider, &d.Token, &d.AccessKeyID, &d.AccessKeySecret,
+			&d.Interval, &d.Enabled,
 			&d.CurrentIP, &d.LastUpdate, &d.CreatedAt, &d.UpdatedAt,
 		); err != nil {
 			continue

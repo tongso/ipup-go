@@ -53,9 +53,15 @@ func (a *App) Startup(ctx context.Context) error {
 	a.domainRepo = domain.NewRepository(db)
 	a.logger = log.NewLogger(db)
 	
+	// 加载设置并应用时区
+	settings, err := a.configMgr.Load()
+	if err == nil && settings.Timezone != "" {
+		a.logger.SetTimezone(settings.Timezone)
+	}
+	
 	// 初始化监控服务
 	checker := monitor.NewChecker("") // API endpoint 从配置加载
-	a.monitorSvc = monitor.NewMonitorService(a.domainRepo, checker)
+	a.monitorSvc = monitor.NewMonitorService(a.domainRepo, a.logger, checker)
 	
 	a.addLog("info", "", "应用初始化完成")
 	return nil

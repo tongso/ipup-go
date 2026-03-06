@@ -4,9 +4,9 @@
 
 ipup-go 是一个基于 Wails + Vue 的现代化 DDNS（动态域名解析）管理工具，使用 SQLite 数据库持久化存储配置。
 
-## 🎉 已完成的工作
+**✨ 最新进展**：已完成阿里云 DNS 服务商集成！
 
-我已经为你创建了一个完整的 DDNS（动态域名解析）管理界面，包含以下功能：
+## 🎉 已完成的工作
 
 ### ✅ 前端组件
 
@@ -23,7 +23,8 @@ ipup-go 是一个基于 Wails + Vue 的现代化 DDNS（动态域名解析）管
 
 3. **域名管理** ([`DomainList.vue`](d:\go\wails\myproject\frontend\src\components\DomainList.vue))
    - 添加/编辑/删除域名配置
-   - 支持多个 DNS 提供商
+   - ✅ **支持多个 DNS 提供商（阿里云、Cloudflare 等）**
+   - ✅ **根据服务商动态显示配置项（Token / AccessKey）**
    - 启用/禁用开关
    - Token 安全存储
 
@@ -43,14 +44,16 @@ ipup-go 是一个基于 Wails + Vue 的现代化 DDNS（动态域名解析）管
 
 已创建完整的 Go 后端接口 ([`app.go`](d:\go\wails\myproject\app.go))：
 - 获取公网 IP
-- 域名增删改查
+- ✅ **域名增删改查（支持阿里云 AccessKey 配置）**
 - 日志管理
 - 设置持久化
 - DDNS 核心功能
 
 ### ✅ TypeScript 绑定
 
-已更新前端类型定义 ([`App.d.ts`](d:\go\wails\myproject\frontend\wailsjs\go\main\App.d.ts)) 和 JavaScript 绑定 ([`App.js`](d:\go\wails\myproject\frontend\wailsjs\go\main\App.js))。
+已更新前端类型定义 ([`models.ts`](d:\go\wails\myproject\frontend\wailsjs\go\models.ts))：
+- ✅ 添加 `accessKeyID` 和 `accessKeySecret` 字段
+- 保持前后端类型同步
 
 ## 🚀 立即运行
 
@@ -71,6 +74,33 @@ wails build
 ```
 
 构建完成后会在 `build/bin` 目录生成可执行文件。
+
+### ✅ 阿里云 DNS 集成 ⭐ NEW
+
+完整实现了阿里云 DNS 服务提供商：
+
+**核心文件**：
+- [`internal/provider/aliyun.go`](d:\go\wails\myproject\internal\provider\aliyun.go) - 阿里云 DNS API 实现
+- [`internal/provider/factory.go`](d:\go\wails\myproject\internal\provider\factory.go) - 提供商工厂方法
+- [`pkg/types/domain.go`](d:\go\wails\myproject\pkg\types\domain.go) - 类型定义（支持多服务商）
+- [`internal/domain/repository.go`](d:\go\wails\myproject\internal\domain\repository.go) - 数据访问层
+
+**功能特性**：
+- ✅ 支持 AccessKey ID 和 AccessKey Secret 验证
+- ✅ 完整的 DNS A 记录增删改查
+- ✅ HMAC-SHA1 签名算法
+- ✅ 自动识别域名结构（根域名/子域名）
+- ✅ 错误处理和日志记录
+- ✅ 可扩展架构，轻松添加新服务商
+
+**文档资源**：
+- [`docs/ALIYUN_DNS_GUIDE.md`](d:\go\wails\myproject\docs\ALIYUN_DNS_GUIDE.md) - 完整配置指南
+- [`docs/ALIYUN_QUICK_REFERENCE.md`](d:\go\wails\myproject\docs\ALIYUN_QUICK_REFERENCE.md) - 快速参考卡片
+- [`docs/ALIYUN_IMPLEMENTATION.md`](d:\go\wails\myproject\docs\ALIYUN_IMPLEMENTATION.md) - 实现总结
+
+**测试脚本**：
+- [`scripts/test_aliyun_dns.go`](d:\go\wails\myproject\scripts\test_aliyun_dns.go) - API 调用测试
+- [`scripts/db_migrate.go`](d:\go\wails\myproject\scripts\db_migrate.go) - 数据库迁移工具
 
 ## 📋 下一步工作
 
@@ -100,7 +130,7 @@ wails build
 4. **DNS 提供商集成**
    ```go
    // Cloudflare API
-   // 阿里云 API (Aliyun)
+   // 阿里云 API (Aliyun) - ✅ 已完成
    // 腾讯云 API (Tencent)
    // DNSPod API
    ```

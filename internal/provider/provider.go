@@ -6,10 +6,10 @@ type Provider interface {
 	Name() string
 	
 	// UpdateRecord 更新 DNS 记录
-	UpdateRecord(domain, token, ip string) error
+	UpdateRecord(domain, ip string) error
 	
 	// GetRecord 获取当前 DNS 记录
-	GetRecord(domain, token string) (string, error)
+	GetRecord(domain string) (string, error)
 }
 
 // BaseProvider 基础提供商结构（可复用）

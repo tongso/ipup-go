@@ -32,12 +32,19 @@ func NewAliyunProvider(accessKeyID, accessKeySecret string) *AliyunProvider {
 }
 
 // UpdateRecord 更新 DNS 记录（A 记录）
+// 流程：
+// 1. 解析域名获取主域名和 RR 前缀
+// 2. 调用 DescribeDomainRecords 查询现有记录的 RecordId 和当前 IP
+// 3. 如果 IP 无变化，直接返回成功（避免重复更新）
+// 4. 根据记录是否存在选择：
+//    - 存在且 IP 不同：调用 UpdateDomainRecord 更新
+//    - 不存在：调用 AddDomainRecord 创建
 func (p *AliyunProvider) UpdateRecord(domain, ip string) error {
 	// 分离主域名和子域名
 	domainName, rr := p.parseDomain(domain)
 	
-	// 1. 查询现有的解析记录 ID
-	recordID, err := p.describeDomainRecord(domainName, rr)
+	// 1. 查询现有的解析记录 ID 和当前 IP
+	recordID, currentIP, err := p.describeDomainRecord(domainName, rr)
 	if err != nil {
 		return fmt.Errorf("查询解析记录失败：%w", err)
 	}
@@ -45,7 +52,14 @@ func (p *AliyunProvider) UpdateRecord(domain, ip string) error {
 	// 2. 根据记录是否存在进行更新或创建
 	var updateErr error
 	if recordID != "" {
-		// 记录存在，更新
+		// 记录存在，检查 IP 是否有变化
+		if currentIP == ip {
+			fmt.Printf("[Aliyun] ✓ IP 无变化，跳过更新：%s -> %s (RecordID: %s)\n", domain, ip, recordID)
+			return nil // IP 无变化，直接返回成功
+		}
+		
+		// IP 有变化，执行更新
+		fmt.Printf("[Aliyun] IP 已变化：%s -> %s，开始更新...\n", currentIP, ip)
 		updateErr = p.updateDomainRecord(recordID, rr, ip)
 		if updateErr != nil {
 			return fmt.Errorf("更新 DNS 记录失败（RecordID: %s）：%w", recordID, updateErr)
@@ -67,7 +81,7 @@ func (p *AliyunProvider) UpdateRecord(domain, ip string) error {
 func (p *AliyunProvider) GetRecord(domain string) (string, error) {
 	domainName, rr := p.parseDomain(domain)
 	
-	recordID, err := p.describeDomainRecord(domainName, rr)
+	recordID, currentIP, err := p.describeDomainRecord(domainName, rr)
 	if err != nil {
 		return "", err
 	}
@@ -76,24 +90,7 @@ func (p *AliyunProvider) GetRecord(domain string) (string, error) {
 		return "", fmt.Errorf("未找到解析记录")
 	}
 	
-	// 获取记录详情
-	params := map[string]string{
-		"Action":    "DescribeDomainRecordInfo",
-		"RecordId":  recordID,
-		"Timestamp": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-	}
-	
-	response, err := p.sendRequest(params)
-	if err != nil {
-		return "", err
-	}
-	
-	value, ok := response["Value"].(string)
-	if !ok {
-		return "", fmt.Errorf("无法获取解析值")
-	}
-	
-	return value, nil
+	return currentIP, nil
 }
 
 // parseDomain 解析域名，返回主域名和 RR 前缀
@@ -115,8 +112,10 @@ func (p *AliyunProvider) parseDomain(fullDomain string) (domainName, rr string) 
 	return domainName, rr
 }
 
-// describeDomainRecord 查询解析记录 ID
-func (p *AliyunProvider) describeDomainRecord(domainName, rr string) (string, error) {
+// describeDomainRecord 查询解析记录 ID 和当前 IP 值
+// 返回值：recordId（记录 ID），currentIP（当前 IP），error（错误信息）
+// 调用 DescribeDomainRecords API 获取指定 RR 和 Type 的记录列表
+func (p *AliyunProvider) describeDomainRecord(domainName, rr string) (string, string, error) {
 	params := map[string]string{
 		"Action":       "DescribeDomainRecords",
 		"DomainName":   domainName,
@@ -127,28 +126,28 @@ func (p *AliyunProvider) describeDomainRecord(domainName, rr string) (string, er
 	
 	response, err := p.sendRequest(params)
 	if err != nil {
-		return "", fmt.Errorf("API 请求失败：%w", err)
+		return "", "", fmt.Errorf("API 请求失败：%w", err)
 	}
 	
 	// 检查是否有错误响应
 	if errMsg, ok := response["Message"].(string); ok {
-		return "", fmt.Errorf("API 错误：%s", errMsg)
+		return "", "", fmt.Errorf("API 错误：%s", errMsg)
 	}
 	
 	domainRecords, ok := response["DomainRecords"].(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("解析响应失败：DomainRecords 字段不存在或类型错误")
+		return "", "", fmt.Errorf("解析响应失败：DomainRecords 字段不存在或类型错误")
 	}
 	
 	recordList, ok := domainRecords["Record"].([]interface{})
 	if !ok {
-		return "", fmt.Errorf("解析响应失败：Record 字段类型错误")
+		return "", "", fmt.Errorf("解析响应失败：Record 字段类型错误")
 	}
 	
 	fmt.Printf("[Aliyun] 查询到 %d 条 DNS 记录\n", len(recordList))
 	
 	if len(recordList) == 0 {
-		return "", nil // 没有找到记录，返回空字符串
+		return "", "", nil // 没有找到记录，返回空字符串
 	}
 	
 	// 找到精确匹配的记录（包括 RR 和 Type）
@@ -163,9 +162,10 @@ func (p *AliyunProvider) describeDomainRecord(domainName, rr string) (string, er
 		
 		if rrOk && typeOk && rRR == rr && rType == "A" {
 			if recordID, ok := r["RecordId"].(string); ok {
+				currentIP, _ := r["Value"].(string)
 				fmt.Printf("[Aliyun] ✓ 找到匹配的 A 记录：%s, RecordID: %s, Type: %s, Value: %s\n", 
-					rr, recordID, rType, r["Value"])
-				return recordID, nil
+					rr, recordID, rType, currentIP)
+				return recordID, currentIP, nil
 			}
 		} else {
 			fmt.Printf("[Aliyun] ✗ 跳过记录 - RR: %v, Type: %v (需要 RR=%s, Type=A)\n", rRR, rType, rr)
@@ -173,19 +173,20 @@ func (p *AliyunProvider) describeDomainRecord(domainName, rr string) (string, er
 	}
 	
 	fmt.Printf("[Aliyun] 未找到匹配的 A 记录：%s\n", rr)
-	return "", nil // 没有找到匹配的记录
+	return "", "", nil // 没有找到匹配的记录
 }
 
 // addDomainRecord 添加解析记录
+// 调用 AddDomainRecord API 创建新的 DNS 解析记录
 func (p *AliyunProvider) addDomainRecord(domainName, rr, ip string) error {
 	params := map[string]string{
-		"Action":    "AddDomainRecord",
+		"Action":     "AddDomainRecord",
 		"DomainName": domainName,
-		"RR":        rr,
-		"Type":      "A",
-		"Value":     ip,
-		"TTL":       "600",
-		"Timestamp": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		"RR":         rr,
+		"Type":       "A",
+		"Value":      ip,
+		"TTL":        "600",
+		"Timestamp":  time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 	}
 	
 	_, err := p.sendRequest(params)
@@ -193,15 +194,29 @@ func (p *AliyunProvider) addDomainRecord(domainName, rr, ip string) error {
 }
 
 // updateDomainRecord 更新解析记录
+// 调用 UpdateDomainRecord API 修改已有的 DNS 解析记录
+// 官方文档：https://help.aliyun.com/zh/dns/api-alidns-2015-01-09-updatedomainrecord
+// 
+// 必填参数：
+// - RecordId: 解析记录 ID（通过 DescribeDomainRecords 获取）
+// - RR: 主机记录（如 www、@）
+// - Type: 记录类型（如 A、CNAME、MX）
+// - Value: 记录值（如 IP 地址）
+// 
+// 可选参数：
+// - TTL: 解析生效时间（秒），默认 600
+// - Line: 解析线路，默认 default
+// - Priority: MX 记录优先级（仅 MX 记录需要）
 func (p *AliyunProvider) updateDomainRecord(recordID, rr, ip string) error {
-	// 使用 ModifyDomainRecord API（正确的更新接口）
+	// 使用 UpdateDomainRecord API（阿里云官方更新接口）
+	// 参考文档：https://help.aliyun.com/zh/dns/api-alidns-2015-01-09-updatedomainrecord
 	params := map[string]string{
-		"Action":     "ModifyDomainRecord",
-		"RecordId":   recordID,
-		"RR":         rr,
-		"Type":       "A",
-		"Value":      ip,
-		"TTL":        "600",
+		"Action":     "UpdateDomainRecord",  // 官方 API 名称
+		"RecordId":   recordID,              // 必填：解析记录 ID
+		"RR":         rr,                    // 必填：主机记录
+		"Type":       "A",                   // 必填：记录类型
+		"Value":      ip,                    // 必填：记录值
+		"TTL":        "600",                 // 可选：解析生效时间（默认 600 秒）
 		"Timestamp":  time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 	}
 	

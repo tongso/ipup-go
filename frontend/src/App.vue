@@ -77,7 +77,7 @@ provide('notify', notificationApi)
 
     <!-- Footer -->
     <footer class="footer">
-      <p>DDNS Manager © 2026 | Powered by Wails + Vue 3</p>
+      <p>DDNS Manager © 2026</p>
     </footer>
 
     <!-- 通知组件 -->

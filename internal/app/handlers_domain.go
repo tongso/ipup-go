@@ -35,6 +35,12 @@ func (a *App) UpdateDomain(d types.Domain) error {
 	}
 	
 	a.addLog("info", d.Domain, fmt.Sprintf("更新域名配置：%s", d.Domain))
+	
+	// 刷新监控服务的定时器
+	if a.monitorSvc != nil {
+		a.monitorSvc.RefreshTimers()
+	}
+	
 	return nil
 }
 
@@ -45,6 +51,12 @@ func (a *App) DeleteDomain(id int) error {
 	}
 	
 	a.addLog("info", "", fmt.Sprintf("删除域名配置 (ID: %d)", id))
+	
+	// 刷新监控服务的定时器
+	if a.monitorSvc != nil {
+		a.monitorSvc.RefreshTimers()
+	}
+	
 	return nil
 }
 
@@ -70,6 +82,11 @@ func (a *App) ToggleDomain(id int) (bool, error) {
 	}
 	a.addLog("info", "", fmt.Sprintf("%s域名 (ID: %d)", statusText, id))
 	
+	// 刷新监控服务的定时器
+	if a.monitorSvc != nil {
+		a.monitorSvc.RefreshTimers()
+	}
+	
 	return newStatus, nil
 }
 
@@ -91,13 +108,8 @@ func (a *App) GetDomainStatus() ([]types.DomainStatus, error) {
 			ID:         domain.ID,
 			Domain:     domain.Domain,
 			Provider:   domain.Provider,
-			CurrentIP:  domain.CurrentIP,
 			LastUpdate: domain.LastUpdate,
 		}
-		
-		// 注意：这里需要将 domain.ID 转换为 int 类型赋给 status
-		// 由于 DomainStatus 结构中没有 ID 字段，我们需要通过其他方式传递
-		// 暂时在 message 中携带 ID 信息，或者修改 DomainStatus 结构
 		
 		// 获取最近的 API 调用日志
 		apiLogs, err := a.logger.Get("", domain.Domain, 1)
@@ -120,17 +132,18 @@ func (a *App) GetDomainStatus() ([]types.DomainStatus, error) {
 			status.APIMessage = "暂无 API 调用记录"
 		}
 		
-		// 如果没有 CurrentIP，设置为等待首次更新
-		if domain.CurrentIP == "" {
-			status.Status = "pending"
-			status.Message = "等待首次更新"
+		// 实时查询域名的 DNS 解析记录进行验证
+		currentIP, queryTime := a.queryDomainDNS(domain.Domain)
+		
+		// 如果没有 CurrentIP 或 DNS 解析不存在，设置为等待首次更新
+		if currentIP == "" {
+			status.Status = "warning"
+			status.Message = "DNS 解析失败或未配置"
+			status.CurrentIP = "" // 明确设置为空，不显示旧 IP
 		} else {
-			// 实时查询域名的 DNS 解析记录进行验证
-			currentIP, queryTime := a.queryDomainDNS(domain.Domain)
-			if currentIP == "" {
-				status.Status = "warning"
-				status.Message = "DNS 解析失败或未配置"
-			} else if currentIP == domain.CurrentIP {
+			// DNS 解析存在
+			status.CurrentIP = currentIP
+			if currentIP == domain.CurrentIP {
 				status.Status = "success"
 				status.Message = "解析正常"
 				status.LastUpdate = queryTime

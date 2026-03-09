@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { ref, reactive, watch, onMounted, onUnmounted } from 'vue'
-import { ListDomains, AddDomain as BackendAddDomain, UpdateDomain as BackendUpdateDomain, DeleteDomain as BackendDeleteDomain, ToggleDomain as BackendToggleDomain, GetDomainStatus } from '../../wailsjs/go/app/App'
+import { ref, reactive, watch, onMounted } from 'vue'
+import { ListDomains, AddDomain as BackendAddDomain, UpdateDomain as BackendUpdateDomain, DeleteDomain as BackendDeleteDomain, ToggleDomain as BackendToggleDomain, GetDomainStatus, UpdateDomainDNS } from '../../wailsjs/go/app/App'
 import { notifySuccess, notifyError, notifyInfo } from '../utils/notifications'
 
 interface DomainConfig {
@@ -21,9 +21,6 @@ interface DomainConfig {
 // 从数据库加载域名列表
 const domains = ref<DomainConfig[]>([])
 const isLoading = ref(true)
-
-// 存储每个域名的刷新定时器
-const refreshTimers = new Map<number, number>()
 
 const showAddModal = ref(false)
 const editingDomain = ref<DomainConfig | null>(null)
@@ -82,8 +79,6 @@ const loadDomains = async () => {
     const result = await ListDomains()
     domains.value = result || []
     
-    // 为每个启用的域名创建独立刷新定时器
-    updateAllRefreshTimers()
   } catch (error) {
     console.error('加载域名列表失败:', error)
     alert('加载域名列表失败')
@@ -92,78 +87,6 @@ const loadDomains = async () => {
   }
 }
 
-// 为单个域名创建刷新定时器
-const createRefreshTimer = (domainId: number, intervalSeconds: number) => {
-  // 清除旧的定时器
-  const oldTimer = refreshTimers.get(domainId)
-  if (oldTimer) {
-    clearInterval(oldTimer)
-  }
-  
-  // 创建新的定时器（转换为毫秒）
-  const intervalMs = intervalSeconds * 1000
-  const timer = window.setInterval(() => {
-    console.log(`⏰ 自动刷新域名 ID ${domainId} 的状态...`)
-    // 只刷新状态，不重新加载整个列表
-    refreshSingleDomainStatus(domainId)
-  }, intervalMs)
-  
-  refreshTimers.set(domainId, timer)
-  console.log(`✅ 域名 ID ${domainId} 的刷新定时器已创建，间隔：${intervalSeconds}秒`)
-}
-
-// 刷新单个域名的状态（仅更新状态显示，不重新加载列表）
-const refreshSingleDomainStatus = async (domainId: number) => {
-  try {
-    const statuses = await GetDomainStatus()
-    if (statuses) {
-      const status = statuses.find(s => {
-        // 通过域名匹配（因为 GetDomainStatus 返回的是 DomainStatus，不是完整 Domain）
-        const targetDomain = domains.value.find(d => d.id === domainId)
-        return targetDomain && s.domain === targetDomain.domain
-      })
-      
-      if (status) {
-        // 更新对应域名的状态信息
-        const target = domains.value.find(d => d.id === domainId)
-        if (target) {
-          target.currentIP = status.currentIP
-          target.lastUpdate = status.lastUpdate
-        }
-      }
-    }
-  } catch (error) {
-    console.error(`刷新域名 ID ${domainId} 状态失败:`, error)
-  }
-}
-
-// 更新所有域名刷新定时器
-const updateAllRefreshTimers = () => {
-  // 清除所有旧定时器
-  refreshTimers.forEach((timer, id) => {
-    clearInterval(timer)
-  })
-  refreshTimers.clear()
-  
-  // 为每个启用的域名创建新定时器
-  domains.value.forEach(domain => {
-    if (domain.enabled && domain.interval > 0) {
-      createRefreshTimer(domain.id, domain.interval)
-    }
-  })
-  
-  console.log(`📊 已创建 ${refreshTimers.size} 个域名刷新定时器`)
-}
-
-// 清除指定域名的定时器
-const clearDomainTimer = (domainId: number) => {
-  const timer = refreshTimers.get(domainId)
-  if (timer) {
-    clearInterval(timer)
-    refreshTimers.delete(domainId)
-    console.log(`🗑️ 已清除域名 ID ${domainId} 的刷新定时器`)
-  }
-}
 
 // 添加域名
 const addDomain = async () => {
@@ -318,15 +241,6 @@ watch(editingDomain, (newVal) => {
 // 组件挂载时加载数据
 onMounted(() => {
   loadDomains()
-})
-
-// 组件卸载时清除所有定时器
-onUnmounted(() => {
-  refreshTimers.forEach((timer, id) => {
-    clearInterval(timer)
-  })
-  refreshTimers.clear()
-  console.log('🗑️ 已清除所有域名刷新定时器')
 })
 </script>
 

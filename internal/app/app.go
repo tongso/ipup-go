@@ -63,7 +63,10 @@ func (a *App) Startup(ctx context.Context) error {
 	checker := monitor.NewChecker("") // API endpoint 从配置加载
 	a.monitorSvc = monitor.NewMonitorService(a.domainRepo, a.logger, checker)
 	
-	a.addLog("info", "", "应用初始化完成")
+	// 启动监控服务（为每个启用的域名创建独立定时器）
+	a.monitorSvc.Start()
+	
+	a.addLog("info", "", "应用初始化完成，监控服务已启动")
 	return nil
 }
 

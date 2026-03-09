@@ -59,7 +59,8 @@ const refreshStatus = async () => {
     if (ipResult) {
       ipInfo.value = ipResult
     }
-    
+        console.log('状态刷新定时器触发，获取最新状态...')
+
     // 获取域名状态 - 每次都从数据库获取最新数据
     const statusResult = await GetDomainStatus()
     domainStatuses.value = statusResult || []
@@ -108,29 +109,43 @@ onMounted(() => {
   // 从设置中读取检查间隔（默认 5 分钟）
   let checkInterval = 5 * 60 * 1000 // 默认值
   
-  // 异步获取设置
+  // ✅ 先异步获取设置，然后再创建定时器
   GetSettings().then((settings: Settings) => {
     if (settings && settings.checkInterval) {
-      checkInterval = settings.checkInterval * 60 * 1000 // 转换为毫秒
-      console.log(`📡 状态监控刷新间隔：${settings.checkInterval}分钟`)
+      checkInterval = settings.checkInterval * 1000 // 转换为毫秒
+      console.log(`📡 状态监控刷新间隔：${settings.checkInterval}秒`)
+    }
+    
+    // ✅ 在获取到设置后才创建定时器
+    const interval = setInterval(refreshStatus, checkInterval)
+    
+    // 监听域名更新事件，立即刷新状态
+    window.addEventListener('domains-updated', () => {
+      console.log('📡 检测到域名更新，立即刷新状态...')
+      refreshStatus()
+    })
+    
+    // 组件卸载时清理定时器
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('domains-updated', () => {})
     }
   }).catch((err: Error) => {
     console.warn('获取设置失败，使用默认值:', err)
+    
+    // ✅ 如果获取失败，使用默认值创建定时器
+    const interval = setInterval(refreshStatus, checkInterval)
+    
+    window.addEventListener('domains-updated', () => {
+      console.log('📡 检测到域名更新，立即刷新状态...')
+      refreshStatus()
+    })
+    
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('domains-updated', () => {})
+    }
   })
-  
-  // 定时刷新状态监控面板
-  const interval = setInterval(refreshStatus, checkInterval)
-  
-  // 监听域名更新事件，立即刷新状态
-  window.addEventListener('domains-updated', () => {
-    console.log('📡 检测到域名更新，立即刷新状态...')
-    refreshStatus()
-  })
-  
-  return () => {
-    clearInterval(interval)
-    window.removeEventListener('domains-updated', () => {})
-  }
 })
 </script>
 
